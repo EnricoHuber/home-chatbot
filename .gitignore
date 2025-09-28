@@ -1,0 +1,15 @@
+# Ignora il virtual environment
+venv/
+home-chatbot-venv/
+.env
+secrets.json
+
+# File temporanei e cache
+__pycache__/
+*.pyc
+*.log
+*.tmp
+*.swp
+
+# Database locale Chroma
+data/chroma_db/

@@ -1,8 +1,16 @@
-# Ignora il virtual environment
+# Virtualenv
 venv/
 home-chatbot-venv/
+
+# Env files
 .env
 secrets.json
+
+# Cache
+__pycache__/
+*.pyc
+temp_*
+
 
 # File temporanei e cache
 __pycache__/

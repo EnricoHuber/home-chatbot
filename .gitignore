@@ -21,4 +21,5 @@ __pycache__/
 
 # Database locale Chroma
 data/chroma_db/
+chroma_db/
 LICENSE

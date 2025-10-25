@@ -23,4 +23,6 @@ __pycache__/
 data/chroma_db/
 data/
 chroma_db/
+chroma_db_test/
+data/chroma_db_test/
 LICENSE

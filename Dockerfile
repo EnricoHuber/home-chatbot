@@ -18,4 +18,4 @@ COPY . .
 RUN mkdir -p chroma_db
 
 # Avvia bot
-CMD ["python", "main.py"]
+CMD ["python", "src/main.py"]

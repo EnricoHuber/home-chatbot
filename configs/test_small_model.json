@@ -6,7 +6,7 @@
     "max_tokens": 300
   },
   "rag": {
-    "enabled": true,
+    "enabled": false,
     "embedding_model": "all-MiniLM-L6-v2",
     "chroma_path": "./chroma_db_test",
     "collection_name": "test_collection"

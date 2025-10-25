@@ -101,26 +101,50 @@ class HomeChatbot:
         return knowledge_list
 
     async def get_response(self, user_message: str, user_id: int) -> str:
-        """Genera una risposta con RAG + LLM"""
-        relevant_knowledge = self.search_knowledge(user_message)
-        context = "\n".join([f"[{k['category'].upper()}] {k['content']}" for k in relevant_knowledge])
-        prompt = f"""Sei un assistente domestico. Usa il contesto se pertinente:
+        """Genera risposta con o senza RAG"""
+        
+        # 1️⃣ Se RAG disabilitato nel config
+        if not self.rag_config.get("enabled", True):
+            prompt = f"""Sei un assistente domestico esperto e amichevole.
+    Rispondi in modo pratico, naturale e utile alla domanda seguente.
 
-{context}
+    DOMANDA UTENTE: {user_message}"""
+        else:
+            # 2️⃣ RAG attivo → cerca conoscenze
+            try:
+                relevant_knowledge = self.search_knowledge(user_message, n_results=3)
+            except Exception as e:
+                relevant_knowledge = []
+                print(f"⚠️ Errore durante la ricerca conoscenze: {e}")
+            
+            if relevant_knowledge:
+                context = "\n".join([f"[{k['category'].upper()}] {k['content']}" for k in relevant_knowledge])
+                context_intro = "Ecco informazioni rilevanti dalla tua knowledge base:"
+            else:
+                context = "Nessuna informazione specifica trovata."
+                context_intro = "Non ho informazioni specifiche, ma posso aiutarti con la mia conoscenza generale:"
+            
+            prompt = f"""Sei un assistente domestico esperto e amichevole.
 
-Domanda: {user_message}
-Rispondi in italiano in modo amichevole e pratico."""
+    {context_intro}
+    {context}
 
+    DOMANDA UTENTE: {user_message}
+
+    Rispondi in italiano in modo pratico, dettagliato e amichevole. Se usi informazioni dalla knowledge base, incorporale naturalmente nella risposta."""
+
+        # 3️⃣ Chiamata LLM
         try:
             response = await self.llm_client.chat.completions.create(
                 model=self.llm_config.get("model"),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=self.llm_config.get("temperature", 0.7),
-                max_tokens=self.llm_config.get("max_tokens", 400)
+                max_tokens=self.llm_config.get("max_tokens", 500)
             )
             return response.choices[0].message.content.strip()
+
         except Exception as e:
-            return f"⚠️ Errore durante la generazione: {str(e)}"
+            return f"⚠️ Errore durante la generazione: {str(e)[:200]}"
 
     def get_stats(self) -> Dict:
         """Statistiche conoscenze"""

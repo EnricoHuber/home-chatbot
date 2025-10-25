@@ -19,14 +19,3 @@ RUN mkdir -p chroma_db
 
 # Avvia bot
 CMD ["python", "main.py"]
-```
-
-**`.dockerignore`**
-```
-__pycache__/
-*.pyc
-.env
-.env.example
-chroma_db/
-venv/
-.git/

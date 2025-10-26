@@ -6,6 +6,18 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from chatbot_core import HomeChatbot
 from dotenv import load_dotenv
 
+from threading import Thread
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "🏠 Home Chatbot attivo!", 200
+
+def run_flask():
+    app.run(host="0.0.0.0", port=10000)
+
 load_dotenv()
 
 # Setup logging
@@ -111,4 +123,5 @@ def main() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
+    Thread(target=run_flask).start()
     main()

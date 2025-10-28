@@ -25,7 +25,19 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Inizializza il chatbot
-chatbot = HomeChatbot()
+try:
+    print("🔍 DEBUG: Inizializzo chatbot...")
+    print(f"🔍 DEBUG: File config esiste? {os.path.exists('./configs/test_small_model.json')}")
+    print(f"🔍 DEBUG: GROQ_API_KEY presente? {bool(os.getenv('GROQ_API_KEY'))}")
+    print(f"🔍 DEBUG: TELEGRAM_BOT_TOKEN presente? {bool(os.getenv('TELEGRAM_BOT_TOKEN'))}")
+    
+    chatbot = HomeChatbot()
+    logger.info("✅ Chatbot inizializzato con successo")
+except Exception as e:
+    logger.error(f"❌ ERRORE nell'inizializzazione chatbot: {e}")
+    import traceback
+    traceback.print_exc()  # ⬅️ Stampa stack trace completo
+    raise
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Comando /start"""

@@ -1,139 +1,144 @@
-# main.py - Bot Telegram principale
+"""
+Main Entry Point for Home Assistant Chatbot
+Supports both Telegram bot and web interface
+"""
 import os
-import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from chatbot_core import HomeChatbot
-from dotenv import load_dotenv
-
+import sys
+from pathlib import Path
 from threading import Thread
 from flask import Flask
+from dotenv import load_dotenv
 
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from utils import ConfigManager, setup_logging
+from core import HomeChatbot
+from handlers.telegram_handler import TelegramBotHandler
+
+# Load environment variables
+load_dotenv()
+
+# Flask app for health checks (required by some hosting services)
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "🏠 Home Chatbot attivo!", 200
+    """Health check endpoint"""
+    return {
+        "status": "running",
+        "service": "Home Assistant Chatbot",
+        "message": "🏠 Bot is active!"
+    }, 200
 
-def run_flask():
-    app.run(host="0.0.0.0", port=10000)
+@app.route('/health')
+def health():
+    """Health check endpoint"""
+    return {"status": "healthy"}, 200
 
-load_dotenv()
-
-# Setup logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Inizializza il chatbot
-try:
-    print("🔍 DEBUG: Inizializzo chatbot...")
-    print(f"🔍 DEBUG: File config esiste? {os.path.exists('./configs/test_small_model.json')}")
-    print(f"🔍 DEBUG: GROQ_API_KEY presente? {bool(os.getenv('GROQ_API_KEY'))}")
-    print(f"🔍 DEBUG: TELEGRAM_BOT_TOKEN presente? {bool(os.getenv('TELEGRAM_BOT_TOKEN'))}")
-    
-    chatbot = HomeChatbot()
-    logger.info("✅ Chatbot inizializzato con successo")
-except Exception as e:
-    logger.error(f"❌ ERRORE nell'inizializzazione chatbot: {e}")
-    import traceback
-    traceback.print_exc()  # ⬅️ Stampa stack trace completo
-    raise
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /start"""
-    await update.message.reply_text(
-        '🏠 Ciao! Sono il tuo assistente domestico.\n'
-        'Puoi chiedermi:\n'
-        '• Informazioni sulle utenze\n'
-        '• Metodi di pulizia naturali\n'
-        '• Consigli per la casa\n\n'
-        'Invia /help per più comandi!'
+def run_flask(config):
+    """Run Flask web server"""
+    app.run(
+        host=config.web.host,
+        port=config.web.port,
+        debug=config.web.debug
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Comando /help"""
-    help_text = """
-🤖 **Comandi disponibili:**
-/start - Avvia il bot
-/help - Mostra questo messaggio
-/upload - Carica un documento PDF
-/info - Info sul database conoscenze
-
-💬 **Esempi di domande:**
-- "Come pulire il forno naturalmente?"
-- "Quando scade il contratto dell'elettricità?"
-- "Ricetta detergente fai da te"
-    """
-    await update.message.reply_text(help_text, parse_mode='Markdown')
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Gestisce i messaggi dell'utente"""
-    user_message = update.message.text
-    user_id = update.effective_user.id
+def main():
+    """Main function"""
+    print("=" * 60)
+    print("🏠 HOME ASSISTANT CHATBOT")
+    print("=" * 60)
     
+    # Load configuration
+    config_path = os.getenv('CONFIG_PATH', None)
+    config_manager = ConfigManager(config_path)
+    config = config_manager.config
+    
+    print(f"📋 Configuration loaded from: {config_manager.config_path}")
+    print(f"🌍 Environment: {config.environment}")
+    print(f"📦 Version: {config.version}")
+    
+    # Setup logging
+    logger = setup_logging(config.logging)
+    log = logger.get_logger("Main")
+    
+    log.info("Starting Home Assistant Chatbot...")
+    
+    # Validate configuration
+    is_valid, errors = config_manager.validate_config()
+    if not is_valid:
+        log.error("Configuration validation failed:")
+        for error in errors:
+            log.error(f"  - {error}")
+        print("\n⚠️ Configuration errors found. Please check your settings.")
+        print("\n📝 Required environment variables:")
+        print(config_manager.get_env_template())
+        sys.exit(1)
+    
+    log.info("✅ Configuration validated successfully")
+    
+    # Initialize chatbot
     try:
-        # Invia "typing..." per mostrare che il bot sta elaborando
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        log.info("Initializing chatbot core...")
+        chatbot = HomeChatbot(config)
+        log.info("✅ Chatbot initialized successfully")
         
-        # Ottieni risposta dal chatbot
-        response = await chatbot.get_response(user_message, user_id)
-        
-        # Invia la risposta
-        await update.message.reply_text(response)
+        # Display stats
+        stats = chatbot.get_stats()
+        if stats['rag'].get('enabled'):
+            log.info(f"📚 Knowledge base: {stats['rag']['total_documents']} documents")
+        else:
+            log.info("📚 RAG system disabled - using base LLM knowledge")
         
     except Exception as e:
-        logger.error(f"Errore nel processare il messaggio: {e}")
-        await update.message.reply_text("Scusa, ho avuto un problema. Riprova!")
-
-async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Gestisce i documenti PDF caricati"""
-    if update.message.document and update.message.document.mime_type == 'application/pdf':
+        log.error(f"❌ Failed to initialize chatbot: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    
+    # Start web server in background (for health checks)
+    if config.web.enabled:
+        log.info(f"🌐 Starting web server on {config.web.host}:{config.web.port}")
+        web_thread = Thread(target=run_flask, args=(config,), daemon=True)
+        web_thread.start()
+    
+    # Start Telegram bot
+    if config.telegram.enabled:
+        log.info("🤖 Starting Telegram bot...")
         try:
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="upload_document")
-            
-            # Scarica il file
-            file = await context.bot.get_file(update.message.document.file_id)
-            file_path = f"temp_{update.message.document.file_name}"
-            await file.download_to_drive(file_path)
-            
-            # Processa il PDF
-            success = await chatbot.add_document(file_path)
-            
-            if success:
-                await update.message.reply_text("✅ Documento aggiunto al database delle conoscenze!")
-            else:
-                await update.message.reply_text("❌ Errore nel processare il documento.")
-                
-            # Rimuovi file temporaneo
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
+            telegram_handler = TelegramBotHandler(chatbot, config)
+            log.info("✅ Telegram bot is running!")
+            log.info("Press Ctrl+C to stop")
+            print("\n" + "=" * 60)
+            print("✅ BOT IS RUNNING!")
+            print("=" * 60 + "\n")
+            telegram_handler.run()
         except Exception as e:
-            logger.error(f"Errore nel processare PDF: {e}")
-            await update.message.reply_text("Errore nel caricare il documento.")
-
-def main() -> None:
-    """Avvia il bot"""
-    # Token del bot Telegram (ottieni da @BotFather)
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-    
-    if not TOKEN:
-        print("ERRORE: Imposta TELEGRAM_BOT_TOKEN nelle variabili d'ambiente!")
-        return
-    
-    # Crea l'applicazione
-    application = Application.builder().token(TOKEN).build()
-    
-    # Aggiungi handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(MessageHandler(filters.Document.PDF, handle_document))
-    
-    # Avvia il bot
-    print("🤖 Bot avviato! Premi Ctrl+C per fermare.")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+            log.error(f"❌ Failed to start Telegram bot: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+    else:
+        log.info("Telegram bot disabled in configuration")
+        if config.web.enabled:
+            log.info("Web server is running. Press Ctrl+C to stop")
+            # Keep the program running
+            try:
+                while True:
+                    import time
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                log.info("Shutting down...")
 
 if __name__ == '__main__':
-    Thread(target=run_flask).start()
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n👋 Shutting down gracefully...")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

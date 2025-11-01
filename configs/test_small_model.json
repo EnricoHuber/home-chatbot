@@ -1,17 +1,40 @@
 {
+  "app_name": "Home Assistant Chatbot",
+  "version": "2.0.0",
+  "environment": "test",
   "llm": {
     "provider": "groq",
     "model": "llama-3.1-8b-instant",
     "temperature": 0.6,
-    "max_tokens": 300
+    "max_tokens": 300,
+    "api_key_env": "GROQ_API_KEY"
   },
   "rag": {
-    "enabled": false,
+    "enabled": true,
     "embedding_model": "all-MiniLM-L6-v2",
     "chroma_path": "./chroma_db_test",
-    "collection_name": "test_collection"
+    "collection_name": "test_collection",
+    "max_search_results": 3,
+    "similarity_threshold": 0.6
+  },
+  "telegram": {
+    "enabled": true,
+    "token_env": "TELEGRAM_BOT_TOKEN",
+    "allowed_users": null,
+    "rate_limit_messages": 20,
+    "rate_limit_window": 60
+  },
+  "web": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 10000,
+    "debug": true
   },
   "logging": {
-    "verbose": true
+    "level": "DEBUG",
+    "verbose": true,
+    "log_file": "./logs/chatbot_test.log",
+    "max_file_size": 10485760,
+    "backup_count": 5
   }
 }

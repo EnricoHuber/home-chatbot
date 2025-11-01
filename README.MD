@@ -1,16 +1,138 @@
-# 🏠 Home Chatbot
+# 🏠 Home Assistant Chatbot
 
-Un assistente domestico personale scritto in **Python**, utilizzabile tramite **Telegram**.  
-Permette di gestire informazioni sulle utenze, metodi di pulizia naturali e altri appunti personali tramite **RAG** (Retrieval Augmented Generation) e database vettoriale (ChromaDB).  
-Supporta anche l’ingestione di documenti PDF.
+**Version 2.0** - Professional, production-ready home assistant chatbot with RAG capabilities.
+
+An intelligent home assistant chatbot that helps with household management, natural cleaning methods, utilities information, and more. Built with Python, Telegram Bot API, and RAG (Retrieval-Augmented Generation).
+
+---
+
+## ✨ Key Features
+
+- 🤖 **Telegram Bot Interface** - Interact via Telegram
+- 🧠 **RAG System** - Retrieval-Augmented Generation for accurate responses
+- 📚 **Knowledge Base** - Store and retrieve custom information
+- 💬 **Text Knowledge Addition** - Add knowledge via `/addknowledge` command
+- 📄 **PDF Support** - Upload documents to expand knowledge base
+- 🎨 **Web Admin Interface** - Streamlit-based management panel
+- ⚙️ **Highly Configurable** - JSON-based configuration system
+- 🚀 **Multiple Deployment Options** - Free hosting on Railway, Fly.io, Oracle Cloud
 
 ---
 
-## 🚀 Funzionalità
-- 🤖 Chatbot Telegram integrato
-- 📄 Upload di documenti PDF → analisi e memorizzazione
-- 🧠 Knowledge base con RAG (ChromaDB + Sentence Transformers)
-- 🌐 Interfaccia web (Streamlit) per gestire la knowledge base
-- 🔒 Gestione sicura delle chiavi tramite `.env`
+## � Documentation
+
+**Complete documentation is available in the [`docs/`](docs/) folder:**
+
+- **[� Full Documentation](docs/README_NEW.md)** - Complete guide
+- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - FREE hosting options
+- **[⚡ Quick Reference](docs/QUICK_REF.md)** - Commands and setup
+- **[📚 Knowledge Guide](docs/KNOWLEDGE_GUIDE.md)** - Adding knowledge via text/PDF
+- **[🏗️ Architecture](docs/STRUCTURE.md)** - Project structure
+- **[📋 Summary](docs/SUMMARY.md)** - What's new in v2.0
+
+**New to the project?** Start with the [Documentation Index](docs/README.md)
 
 ---
+
+## 🚀 Quick Start
+
+### 1. Setup
+```bash
+# Clone repository
+git clone https://github.com/EnricoHuber/home-chatbot.git
+cd home-chatbot
+
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your API keys
+```
+
+### 2. Get API Keys
+- **Groq API**: https://console.groq.com/keys
+- **Telegram Bot**: https://t.me/BotFather
+
+### 3. Run
+```bash
+python src/main.py
+```
+
+### 4. Use the Bot
+- Open Telegram and find your bot
+- Send `/start` to begin
+- Try: "Come pulire il forno naturalmente?"
+- Add knowledge: `/addknowledge utenze Contratto luce scade 31/12/2025`
+
+---
+
+## 📦 Project Structure
+
+```
+src/
+├── core/              # Business logic (chatbot, LLM, RAG)
+├── handlers/          # Interface handlers (Telegram)
+├── interfaces/        # User interfaces (Web admin)
+├── utils/             # Utilities (config, logging, helpers)
+└── main.py           # Entry point
+
+configs/               # Configuration files
+docs/                  # Documentation
+logs/                  # Application logs
+```
+
+---
+
+## 🎮 Bot Commands
+
+- `/start` - Initialize the bot
+- `/help` - Show available commands
+- `/addknowledge` - Add text knowledge
+- `/stats` - View statistics
+- `/info` - Bot information
+
+**Send a PDF** - Automatically adds to knowledge base
+
+---
+
+## 🚀 Deploy for FREE
+
+Multiple free hosting options available:
+
+| Platform | RAM | Cost | Always-On |
+|----------|-----|------|-----------|
+| **Railway** ⭐ | 512MB | $5/mo trial | ✅ |
+| **Fly.io** | 256MB | FREE | ✅ |
+| **Oracle Cloud** | 24GB | FREE | ✅ |
+
+See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! See [docs/README_NEW.md](docs/README_NEW.md) for development setup.
+
+---
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Groq for LLM API
+- ChromaDB for vector database
+- Sentence Transformers for embeddings
+
+---
+
+**For detailed documentation, visit the [`docs/`](docs/) folder! 📚**

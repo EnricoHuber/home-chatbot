@@ -2,20 +2,28 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Installa dipendenze sistema
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia requirements
+# Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia codice
+# Copy application code
 COPY . .
 
-# Crea cartella per ChromaDB
-RUN mkdir -p chroma_db
+# Create necessary directories
+RUN mkdir -p logs chroma_db
 
-# Avvia bot
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
+
+# Expose port for health checks
+EXPOSE 10000
+
+# Run the application
 CMD ["python", "src/main.py"]

@@ -1,0 +1,17 @@
+# Railway.app deployment configuration
+# Railway automatically detects Procfile
+
+# Build configuration
+[build]
+builder = "NIXPACKS"
+
+# Health check configuration
+[healthcheck]
+path = "/health"
+interval = 60
+timeout = 10
+
+# Environment variables to set in Railway dashboard:
+# - GROQ_API_KEY
+# - TELEGRAM_BOT_TOKEN
+# - ENVIRONMENT=production

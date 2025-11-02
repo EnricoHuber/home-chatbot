@@ -5,18 +5,16 @@ python-telegram-bot==20.7
 chromadb==0.4.15
 sentence-transformers==2.2.2
 
-# AI/ML Dependencies
+# AI/ML Dependencies - Lightweight versions
 transformers==4.30.2
 huggingface-hub==0.24.6
-# Note: torch will be installed automatically by sentence-transformers
-# For Railway/Fly.io, use CPU-only version in Dockerfile
+# torch is installed automatically by sentence-transformers (CPU version)
 
 # LLM Provider
 groq==0.4.1
 
 # Web Framework
 flask==3.0.0
-streamlit==1.28.0
 
 # PDF Processing
 PyPDF2==3.0.1
@@ -24,6 +22,3 @@ PyPDF2==3.0.1
 # Utilities
 python-dotenv==1.0.0
 requests==2.31.0
-
-# Optional: For better performance
-# accelerate==0.24.0

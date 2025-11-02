@@ -1,0 +1,48 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install PyTorch CPU-only version first (smaller and faster)
+RUN pip install --no-cache-dir \
+    torch==2.0.1 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install other requirements
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY configs/ ./configs/
+COPY src/ ./src/
+COPY .env.example ./
+
+# Create necessary directories
+RUN mkdir -p logs chroma_db
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
+ENV TRANSFORMERS_CACHE=/tmp
+ENV HF_HOME=/tmp
+ENV SENTENCE_TRANSFORMERS_HOME=/tmp
+
+# Expose port
+EXPOSE 10000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:10000/health')" || exit 1
+
+# Run the application
+CMD ["python", "src/main.py"]

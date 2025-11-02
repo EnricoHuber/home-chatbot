@@ -1,8 +1,65 @@
-__pycache__/
-*.pyc
-.env
+# Git files
 .git
 .gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
 home-chatbot-venv/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Logs
+logs/
+*.log
+
+# Database (will be created in container)
 chroma_db/
+chroma_db_test/
+*.db
+*.sqlite
+
+# Temporary files
+temp_*
+*.tmp
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.MD
+
+# Test files
 tests/
+test_*.py
+*_test.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Railway specific
+.railway
+railway.json
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

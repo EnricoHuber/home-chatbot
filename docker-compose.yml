@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  chatbot:
+    build: .
+    container_name: home-chatbot
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=dev
+    ports:
+      - "10000:10000"
+    volumes:
+      # Persist knowledge database
+      - ./chroma_db:/app/chroma_db
+      # Persist logs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

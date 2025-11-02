@@ -7,9 +7,11 @@ Welcome to the Home Assistant Chatbot documentation!
 ## 🚀 Getting Started
 
 ### New Users - Start Here:
-1. **[README](../README_NEW.md)** - Main project documentation
-2. **[QUICK_REF.md](QUICK_REF.md)** - Quick reference commands and setup
-3. **[SUMMARY.md](SUMMARY.md)** - Overview of features and changes
+1. **[README](../README.MD)** - Main project documentation
+2. **[LOCAL_TESTING.md](../LOCAL_TESTING.md)** 🧪 - Test locally first!
+3. **[DOCKER_LOCAL.md](../DOCKER_LOCAL.md)** 🐳 - Test in Docker
+4. **[QUICK_REF.md](QUICK_REF.md)** - Quick reference commands
+5. **[DEPLOYMENT.md](DEPLOYMENT.md)** 🚀 - Deploy to production
 
 ---
 

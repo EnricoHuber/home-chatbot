@@ -34,6 +34,54 @@ An intelligent home assistant chatbot that helps with household management, natu
 
 ---
 
+## 🧪 Test Locally First! (Recommended)
+
+**Before deploying, test the bot locally:**
+
+### Option 1: Run Directly with Python
+
+```powershell
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Create .env file with your credentials
+Copy-Item .env.example .env
+notepad .env  # Add your GROQ_API_KEY and TELEGRAM_BOT_TOKEN
+
+# 3. Run the bot
+python src/main.py
+```
+
+**Or use the automated script:** `.\test-local.ps1`
+
+---
+
+### Option 2: Test in Docker (Recommended) 🐳
+
+**Test in the exact same environment as production:**
+
+```powershell
+# Quick Docker test
+.\test-docker.ps1
+```
+
+**Or manually:**
+
+```powershell
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
+**Why Docker?**
+- ✅ Same environment as Railway/Render/Fly.io
+- ✅ Isolates dependencies
+- ✅ Easy to reset and test again
+- ✅ No Python installation conflicts
+
+**See guides:** [LOCAL_TESTING.md](LOCAL_TESTING.md) | [DOCKER_LOCAL.md](DOCKER_LOCAL.md)
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Setup

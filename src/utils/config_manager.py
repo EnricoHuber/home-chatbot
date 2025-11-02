@@ -93,12 +93,12 @@ class ConfigManager:
 
     def _get_default_config_path(self) -> str:
         """Get default configuration path based on environment"""
-        env = os.getenv("ENVIRONMENT", "development")
-        if env == "production":
+        env = os.getenv("ENVIRONMENT", "development").lower()
+        if env in ["production", "prod"]:
             return "./configs/production_config.json"
-        elif env == "test":
-            return "./configs/test_config.json"
-        else:
+        elif env in ["test", "testing"]:
+            return "./configs/test_small_model.json"
+        else:  # development, dev, or any other value
             return "./configs/base_config.json"
 
     def load_config(self) -> AppConfig:

@@ -3,6 +3,7 @@ Core chatbot functionality with improved architecture
 """
 import os
 import asyncio
+import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 

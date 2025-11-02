@@ -4,9 +4,6 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
-# Build configuration
-[build.buildCommand]
-
 # Health check configuration
 [healthcheck]
 path = "/health"

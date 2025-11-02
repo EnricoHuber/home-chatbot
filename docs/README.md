@@ -33,6 +33,22 @@ Welcome to the Home Assistant Chatbot documentation!
 - Memory optimization tips
 - Cost comparison
 
+### [RAILWAY_FIX.md](RAILWAY_FIX.md) 🚂
+**Railway deployment troubleshooting**
+- Build timeout fixes
+- Step-by-step deploy guide
+- Optimization explanations
+- Alternative solutions
+- Success checklist
+
+### [DEPLOY_VALIDATION.md](DEPLOY_VALIDATION.md) ✅
+**Multi-platform deployment validation**
+- Railway, Render, Fly.io, Heroku configs
+- Platform comparison table
+- Configuration testing
+- Environment variables guide
+- Quick fix commands
+
 ### [QUICK_REF.md](QUICK_REF.md)
 **Quick reference card**
 - Common commands

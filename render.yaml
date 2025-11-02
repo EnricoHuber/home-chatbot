@@ -1,11 +1,8 @@
-version: 2
 services:
   - type: web
     name: home-chatbot
-    runtime: python
+    runtime: docker
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python src/main.py
     envVars:
       - key: ENVIRONMENT
         value: production

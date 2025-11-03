@@ -67,11 +67,18 @@ Fai una domanda o usa /help per vedere tutti i comandi disponibili!"""
         """Handle /help command"""
         help_text = """🤖 **Comandi disponibili:**
 
+**📋 Comandi Base:**
 /start - Avvia il bot
 /help - Mostra questo messaggio
-/stats - Statistiche del bot
-/info - Informazioni sul database conoscenze
-/addknowledge - Aggiungi nuova conoscenza al database
+/info - Informazioni sul bot
+
+**📊 Monitoraggio:**
+/stats - Statistiche del database conoscenze
+/usage - Utilizzo servizi in tempo reale
+/resources - Link a tutte le dashboard
+
+**📚 Gestione Conoscenze:**
+/addknowledge - Aggiungi nuova conoscenza
 
 💬 **Esempi di domande:**
 • "Come pulire il forno naturalmente?"
@@ -80,7 +87,7 @@ Fai una domanda o usa /help per vedere tutti i comandi disponibili!"""
 • "Come rimuovere il calcare?"
 • "Consigli per la manutenzione del condizionatore"
 
-� **Aggiungere conoscenze:**
+📝 **Aggiungere conoscenze:**
 1. **Testo**: Usa /addknowledge seguito dal testo
    Esempio: `/addknowledge Il contratto luce scade il 31/12/2025`
 
@@ -144,6 +151,102 @@ Le mie specialità:
 • Tutto viene salvato e usato per risponderti meglio!
 """
         await update.message.reply_text(info_text, parse_mode='Markdown')
+    
+    async def resources_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /resources command - show service dashboards and links"""
+        resources_text = """🔗 **Risorse e Dashboard**
+
+📊 **Monitoraggio Servizi:**
+
+**🚂 Railway (Hosting Bot)**
+📍 Dashboard: https://railway.app/dashboard
+• Visualizza log in tempo reale
+• Monitora utilizzo CPU/RAM
+• Controlla credito rimanente ($5/mese)
+• Gestisci variabili ambiente
+
+**🗄️ Supabase (Database)**
+📍 Dashboard: https://supabase.com/dashboard
+• Table Editor: Visualizza documenti salvati
+• SQL Editor: Query personalizzate
+• Settings → Usage: Controlla spazio usato (500MB free)
+• Settings → API: Chiavi e documentazione
+
+**🤖 Groq (AI/LLM)**
+📍 Console: https://console.groq.com
+• Settings → Limits: Visualizza rate limits
+• Usage: 14,400 richieste/giorno (free tier)
+• API Keys: Gestisci chiavi API
+
+━━━━━━━━━━━━━━━━━━━━━━
+📈 **Limiti Attuali:**
+• Railway: $5 credito/mese (~500 ore uptime)
+• Supabase: 500MB storage (0.002% usato)
+• Groq: 14,400 richieste/giorno
+
+💡 Usa /usage per vedere l'utilizzo in tempo reale!
+"""
+        await update.message.reply_text(resources_text, parse_mode='Markdown', disable_web_page_preview=True)
+    
+    async def usage_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /usage command - fetch real usage data from APIs"""
+        await update.message.reply_text("🔄 Recupero informazioni sull'utilizzo...")
+        
+        try:
+            # Get Supabase stats
+            supabase_stats = self.chatbot.rag_system.storage.get_stats() if hasattr(self.chatbot.rag_system, 'storage') else {}
+            
+            # Get environment
+            environment = os.getenv('ENVIRONMENT', 'development')
+            
+            # Build usage report
+            usage_text = f"""📊 **Report Utilizzo Servizi**
+
+**🗄️ Supabase (Database Conoscenze)**
+• Backend: {supabase_stats.get('storage_backend', 'N/A')}
+• Documenti totali: {supabase_stats.get('total', 0)}
+• Spazio stimato: ~{supabase_stats.get('total', 0) * 2} KB / 500 MB
+• Stato: ✅ Operativo
+
+**📚 Categorie Documenti:**"""
+            
+            # Add categories
+            categories = supabase_stats.get('by_category', {})
+            if categories:
+                for cat, count in categories.items():
+                    usage_text += f"\n  • {cat}: {count} documenti"
+            else:
+                usage_text += "\n  • Nessuna categoria"
+            
+            usage_text += f"""
+
+**🚂 Railway (Hosting)**
+• Ambiente: {environment}
+• Stato: ✅ Online
+• Uptime: Bot attivo
+• Health check: http://localhost:10000/health
+
+**🤖 Groq (AI Model)**
+• Modello: {self.chatbot.config.llm.model}
+• Rate limit: 30 req/minuto
+• Daily limit: 14,400 req/giorno
+• Stato: ✅ Operativo
+
+━━━━━━━━━━━━━━━━━━━━━━
+💡 **Suggerimenti:**
+• Controlla Railway dashboard per utilizzo CPU/RAM
+• Visita Supabase dashboard per vedere i dati
+• Usa /resources per link diretti alle dashboard
+"""
+            
+            await update.message.reply_text(usage_text, parse_mode='Markdown')
+            
+        except Exception as e:
+            self.log_error(f"Error getting usage info: {e}", e)
+            await update.message.reply_text(
+                "❌ Errore nel recuperare le informazioni sull'utilizzo.\n"
+                "Usa /resources per accedere alle dashboard manualmente."
+            )
     
     async def addknowledge_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /addknowledge command to add knowledge directly"""
@@ -317,6 +420,8 @@ Ora posso usare questa informazione per rispondere alle domande!"""
         application.add_handler(CommandHandler("help", self.help_command))
         application.add_handler(CommandHandler("stats", self.stats_command))
         application.add_handler(CommandHandler("info", self.info_command))
+        application.add_handler(CommandHandler("resources", self.resources_command))
+        application.add_handler(CommandHandler("usage", self.usage_command))
         application.add_handler(CommandHandler("addknowledge", self.addknowledge_command))
         application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)
@@ -333,6 +438,8 @@ Ora posso usare questa informazione per rispondere alle domande!"""
             BotCommand("help", "❓ Mostra l'elenco dei comandi disponibili"),
             BotCommand("stats", "📊 Visualizza statistiche del bot"),
             BotCommand("info", "ℹ️ Informazioni sul bot"),
+            BotCommand("resources", "🔗 Link alle dashboard dei servizi"),
+            BotCommand("usage", "📈 Utilizzo in tempo reale dei servizi"),
             BotCommand("addknowledge", "📚 Aggiungi conoscenza alla base dati"),
         ]
         

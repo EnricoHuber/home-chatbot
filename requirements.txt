@@ -5,10 +5,8 @@ python-telegram-bot==20.7
 chromadb==0.4.15
 sentence-transformers==2.2.2
 
-# Supabase for persistent vector storage (optional, for production)
-# Using version 2.3.4 which should work with httpx 0.25.x
-supabase==2.3.4
-httpx==0.25.2
+# Supabase via REST API (no SDK needed - using requests library)
+httpx==0.25.2  # Required by python-telegram-bot
 
 # AI/ML Dependencies
 transformers==4.30.2

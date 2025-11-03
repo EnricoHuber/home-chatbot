@@ -1,13 +1,13 @@
 """
 Supabase Storage Backend for RAG Knowledge Base
-Uses PostgreSQL with pgvector via REST API (avoids dependency conflicts)
+Uses PostgreSQL with pgvector for persistent, scalable vector storage
 """
 import os
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 import hashlib
-import requests
 
+from supabase import create_client, Client
 from sentence_transformers import SentenceTransformer
 
 from utils.logger import LoggerMixin
@@ -36,38 +36,23 @@ class SupabaseStorage(LoggerMixin):
         """
         self.config = config
         self.embedder = embedder
+        self.client: Optional[Client] = None
         self.table_name = "knowledge_base"
-        
-        # Setup REST API
-        self.supabase_url = os.getenv("SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_KEY")
-        
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
-        
-        self.base_url = self.supabase_url.rstrip('/')
-        self.headers = {
-            "apikey": self.supabase_key,
-            "Authorization": f"Bearer {self.supabase_key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation"
-        }
         
         self._connect()
         self._ensure_table_exists()
     
     def _connect(self):
-        """Connect to Supabase via REST API"""
+        """Connect to Supabase"""
         try:
-            # Test connection with a simple GET request
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"limit": 1},
-                timeout=10
-            )
-            response.raise_for_status()
-            self.log_success(f"Connected to Supabase REST API: {self.base_url[:30]}...")
+            supabase_url = os.getenv("SUPABASE_URL")
+            supabase_key = os.getenv("SUPABASE_KEY")
+            
+            if not supabase_url or not supabase_key:
+                raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
+            
+            self.client = create_client(supabase_url, supabase_key)
+            self.log_success(f"Connected to Supabase: {supabase_url[:30]}...")
             
         except Exception as e:
             self.log_error(f"Failed to connect to Supabase: {e}", e)
@@ -77,17 +62,32 @@ class SupabaseStorage(LoggerMixin):
         """
         Ensure the knowledge_base table exists with pgvector extension
         
-        Note: You need to run this SQL in Supabase SQL Editor ONCE (see SUPABASE_SETUP.md)
+        Note: You need to run this SQL in Supabase SQL Editor ONCE:
+        
+        -- Enable pgvector extension
+        CREATE EXTENSION IF NOT EXISTS vector;
+        
+        -- Create knowledge_base table
+        CREATE TABLE IF NOT EXISTS knowledge_base (
+            id TEXT PRIMARY KEY,
+            content TEXT NOT NULL,
+            category TEXT DEFAULT 'generale',
+            embedding vector(384),  -- Adjust dimension based on your model
+            metadata JSONB DEFAULT '{}',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        
+        -- Create index for vector similarity search
+        CREATE INDEX IF NOT EXISTS knowledge_base_embedding_idx 
+        ON knowledge_base USING ivfflat (embedding vector_cosine_ops);
+        
+        -- Create index for category filtering
+        CREATE INDEX IF NOT EXISTS knowledge_base_category_idx 
+        ON knowledge_base(category);
         """
         try:
             # Try to query the table to check if it exists
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"limit": 1},
-                timeout=10
-            )
-            response.raise_for_status()
+            result = self.client.table(self.table_name).select("id").limit(1).execute()
             self.log_success(f"Table '{self.table_name}' exists and is accessible")
         except Exception as e:
             self.log_warning(f"Table check failed: {e}")
@@ -96,24 +96,9 @@ class SupabaseStorage(LoggerMixin):
     def count(self) -> int:
         """Get total number of knowledge items"""
         try:
-            headers = self.headers.copy()
-            headers["Prefer"] = "count=exact"
-            
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=headers,
-                params={"limit": 0},
-                timeout=10
-            )
-            response.raise_for_status()
-            
-            # Extract count from Content-Range header
-            content_range = response.headers.get("Content-Range", "")
-            if content_range:
-                # Format: "0-0/123" where 123 is the total count
-                total = int(content_range.split("/")[-1])
-                return total
-            return 0
+            result = self.client.table(self.table_name).select("id", count="exact").execute()
+            count = result.count if hasattr(result, 'count') else 0
+            return count
         except Exception as e:
             self.log_error(f"Error counting knowledge items: {e}")
             return 0
@@ -151,14 +136,8 @@ class SupabaseStorage(LoggerMixin):
                 "metadata": doc_metadata
             }
             
-            # Upsert (insert or update if exists) via REST API
-            response = requests.post(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers={**self.headers, "Prefer": "resolution=merge-duplicates"},
-                json=data,
-                timeout=30
-            )
-            response.raise_for_status()
+            # Upsert (insert or update if exists)
+            result = self.client.table(self.table_name).upsert(data).execute()
             
             self.log_debug(f"Added knowledge: {doc_id} (category: {category})")
             return doc_id
@@ -184,6 +163,7 @@ class SupabaseStorage(LoggerMixin):
             query_embedding = self.embedder.encode(query).tolist()
             
             # Call Supabase RPC function for vector similarity search
+            # Note: You need to create this function in Supabase (see SUPABASE_SETUP.md)
             rpc_params = {
                 "query_embedding": query_embedding,
                 "match_count": n_results
@@ -192,19 +172,12 @@ class SupabaseStorage(LoggerMixin):
             if category:
                 rpc_params["filter_category"] = category
             
-            response = requests.post(
-                f"{self.base_url}/rest/v1/rpc/match_knowledge",
-                headers=self.headers,
-                json=rpc_params,
-                timeout=30
-            )
-            response.raise_for_status()
+            result = self.client.rpc("match_knowledge", rpc_params).execute()
             
             # Format results
             knowledge_list = []
-            data = response.json()
-            if data:
-                for item in data:
+            if result.data:
+                for item in result.data:
                     knowledge_list.append({
                         "content": item["content"],
                         "category": item["category"],
@@ -226,27 +199,20 @@ class SupabaseStorage(LoggerMixin):
             self.log_warning("Using fallback text search (vector search unavailable)")
             
             # Basic text search using ilike (case-insensitive LIKE)
-            params = {
-                "content": f"ilike.%{query}%",
-                "limit": n_results
-            }
+            query_builder = self.client.table(self.table_name).select("*")
             
             if category:
-                params["category"] = f"eq.{category}"
+                query_builder = query_builder.eq("category", category)
             
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params=params,
-                timeout=10
-            )
-            response.raise_for_status()
+            # Search in content
+            query_builder = query_builder.ilike("content", f"%{query}%")
+            query_builder = query_builder.limit(n_results)
             
-            data = response.json()
+            result = query_builder.execute()
             
             knowledge_list = []
-            if data:
-                for item in data:
+            if result.data:
+                for item in result.data:
                     knowledge_list.append({
                         "content": item["content"],
                         "category": item.get("category", "generale"),
@@ -271,13 +237,7 @@ class SupabaseStorage(LoggerMixin):
             True if successful
         """
         try:
-            response = requests.delete(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"id": f"eq.{doc_id}"},
-                timeout=30
-            )
-            response.raise_for_status()
+            result = self.client.table(self.table_name).delete().eq("id", doc_id).execute()
             self.log_info(f"Deleted knowledge: {doc_id}")
             return True
         except Exception as e:
@@ -287,15 +247,8 @@ class SupabaseStorage(LoggerMixin):
     def get_all_categories(self) -> List[str]:
         """Get list of all categories"""
         try:
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"select": "category"},
-                timeout=10
-            )
-            response.raise_for_status()
-            data = response.json()
-            categories = list(set(item["category"] for item in data if "category" in item))
+            result = self.client.table(self.table_name).select("category").execute()
+            categories = list(set(item["category"] for item in result.data if "category" in item))
             return categories
         except Exception as e:
             self.log_error(f"Error getting categories: {e}", e)
@@ -308,24 +261,16 @@ class SupabaseStorage(LoggerMixin):
             total = self.count()
             
             # Count by category
-            response = requests.get(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"select": "category"},
-                timeout=30
-            )
-            response.raise_for_status()
-            data = response.json()
-            
             categories = {}
-            for item in data:
+            result = self.client.table(self.table_name).select("category").execute()
+            for item in result.data:
                 cat = item.get("category", "generale")
                 categories[cat] = categories.get(cat, 0) + 1
             
             return {
                 "total": total,
                 "by_category": categories,
-                "storage_backend": "Supabase (PostgreSQL + pgvector via REST)"
+                "storage_backend": "Supabase (PostgreSQL + pgvector)"
             }
         except Exception as e:
             self.log_error(f"Error getting stats: {e}", e)
@@ -334,13 +279,7 @@ class SupabaseStorage(LoggerMixin):
     def clear_all(self) -> bool:
         """Clear all knowledge (use with caution!)"""
         try:
-            response = requests.delete(
-                f"{self.base_url}/rest/v1/{self.table_name}",
-                headers=self.headers,
-                params={"id": "neq."},
-                timeout=30
-            )
-            response.raise_for_status()
+            result = self.client.table(self.table_name).delete().neq("id", "").execute()
             self.log_warning("Cleared all knowledge from Supabase")
             return True
         except Exception as e:

@@ -4,7 +4,7 @@ Handles all Telegram bot interactions
 """
 import os
 from typing import Optional
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import (
     Application, 
     CommandHandler, 
@@ -326,6 +326,22 @@ Ora posso usare questa informazione per rispondere alle domande!"""
         )
         self.log_success("Telegram handlers configured")
     
+    async def setup_bot_commands(self, application: Application) -> None:
+        """Setup bot command menu visible in Telegram UI"""
+        commands = [
+            BotCommand("start", "🏠 Avvia il bot e mostra il messaggio di benvenuto"),
+            BotCommand("help", "❓ Mostra l'elenco dei comandi disponibili"),
+            BotCommand("stats", "📊 Visualizza statistiche del bot"),
+            BotCommand("info", "ℹ️ Informazioni sul bot"),
+            BotCommand("addknowledge", "📚 Aggiungi conoscenza alla base dati"),
+        ]
+        
+        try:
+            await application.bot.set_my_commands(commands)
+            self.log_success("Bot commands menu configured")
+        except Exception as e:
+            self.log_error(f"Failed to setup bot commands menu: {e}", e)
+    
     def run(self) -> None:
         """Start the Telegram bot"""
         token = os.getenv(self.config.token_env)
@@ -339,6 +355,9 @@ Ora posso usare questa informazione per rispondere alle domande!"""
         
         # Setup handlers
         self.setup_handlers(self.application)
+        
+        # Setup bot commands menu (async operation)
+        self.application.post_init = self.setup_bot_commands
         
         # Start bot
         self.log_info("Starting Telegram bot...")

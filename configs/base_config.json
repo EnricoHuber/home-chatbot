@@ -11,6 +11,7 @@
   },
   "rag": {
     "enabled": true,
+    "storage_type": "chromadb",
     "embedding_model": "paraphrase-multilingual-MiniLM-L12-v2",
     "chroma_path": "./chroma_db",
     "collection_name": "home_assistant",

@@ -23,6 +23,7 @@ class LLMConfig:
 class RAGConfig:
     """RAG Configuration"""
     enabled: bool = True
+    storage_type: str = "chromadb"  # chromadb or supabase
     embedding_model: str = "all-MiniLM-L6-v2"
     chroma_path: str = "./chroma_db"
     collection_name: str = "home_assistant"

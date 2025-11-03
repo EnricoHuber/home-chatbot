@@ -22,6 +22,61 @@ from utils.helpers import (
 )
 
 
+class ChromaDBWrapper:
+    """Wrapper to make ChromaDB compatible with storage interface"""
+    
+    def __init__(self, collection, embedder):
+        self.collection = collection
+        self.embedder = embedder
+    
+    def count(self) -> int:
+        return self.collection.count()
+    
+    def add_knowledge(self, content: str, category: str = "generale", metadata: Optional[Dict] = None) -> str:
+        doc_id = generate_document_id(content, category)
+        embedding = self.embedder.encode(content).tolist()
+        
+        doc_metadata = {"category": category, "timestamp": datetime.now().isoformat()}
+        if metadata:
+            doc_metadata.update(metadata)
+        
+        self.collection.add(
+            documents=[content],
+            embeddings=[embedding],
+            metadatas=[doc_metadata],
+            ids=[doc_id]
+        )
+        return doc_id
+    
+    def search_knowledge(self, query: str, n_results: int = 3, category: Optional[str] = None) -> List[Dict]:
+        query_embedding = self.embedder.encode(query).tolist()
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=min(n_results, max(1, self.collection.count()))
+        )
+        
+        knowledge_list = []
+        if results["documents"] and results["documents"][0]:
+            for i, doc in enumerate(results["documents"][0]):
+                distance = results["distances"][0][i] if results.get("distances") else 0
+                similarity = 1 - distance
+                
+                knowledge_list.append({
+                    "content": doc,
+                    "category": results["metadatas"][0][i].get("category", "generale"),
+                    "similarity": similarity,
+                    "metadata": results["metadatas"][0][i]
+                })
+        
+        return knowledge_list
+    
+    def get_stats(self) -> Dict:
+        return {
+            "total": self.count(),
+            "storage_backend": "ChromaDB (local)"
+        }
+
+
 class LLMProvider(LoggerMixin):
     """LLM Provider interface"""
     
@@ -65,11 +120,13 @@ class LLMProvider(LoggerMixin):
 
 
 class RAGSystem(LoggerMixin):
-    """RAG (Retrieval-Augmented Generation) System"""
+    """RAG (Retrieval-Augmented Generation) System with multiple storage backends"""
     
     def __init__(self, config: AppConfig):
         self.config = config.rag
         self.cache = MemoryCache(default_ttl=300)  # 5 minutes cache
+        self.storage = None
+        self.embedder = None
         
         if self.config.enabled:
             self._setup_rag()
@@ -77,7 +134,29 @@ class RAGSystem(LoggerMixin):
             self.log_info("RAG system disabled")
     
     def _setup_rag(self):
-        """Setup RAG components"""
+        """Setup RAG components with configurable storage backend"""
+        try:
+            # Initialize embedding model first (needed by both backends)
+            self.log_info(f"Loading embedding model: {self.config.embedding_model}")
+            self.embedder = SentenceTransformer(self.config.embedding_model)
+            
+            # Choose storage backend
+            storage_type = getattr(self.config, 'storage_type', 'chromadb').lower()
+            
+            if storage_type == 'supabase':
+                self._setup_supabase_storage()
+            else:
+                self._setup_chromadb_storage()
+            
+            self.log_success(f"RAG system initialized with {storage_type} backend")
+            self._load_base_knowledge()
+            
+        except Exception as e:
+            self.log_error(f"Failed to setup RAG system: {e}", e)
+            raise
+    
+    def _setup_chromadb_storage(self):
+        """Setup ChromaDB storage (local, ephemeral on Railway)"""
         try:
             # Ensure ChromaDB path exists
             os.makedirs(self.config.chroma_path, exist_ok=True)
@@ -88,23 +167,37 @@ class RAGSystem(LoggerMixin):
                 name=self.config.collection_name
             )
             
-            # Initialize embedding model
-            self.log_info(f"Loading embedding model: {self.config.embedding_model}")
-            self.embedder = SentenceTransformer(self.config.embedding_model)
-            
-            self.log_success("RAG system initialized successfully")
-            self._load_base_knowledge()
+            # Wrap ChromaDB with our interface
+            self.storage = ChromaDBWrapper(self.collection, self.embedder)
+            self.log_success("ChromaDB storage initialized")
             
         except Exception as e:
-            self.log_error(f"Failed to setup RAG system: {e}", e)
+            self.log_error(f"Failed to setup ChromaDB: {e}", e)
             raise
+    
+    def _setup_supabase_storage(self):
+        """Setup Supabase storage (persistent, cloud-based)"""
+        try:
+            from storage import SupabaseStorage
+            
+            self.storage = SupabaseStorage(self.config, self.embedder)
+            self.log_success("Supabase storage initialized")
+            
+        except ImportError:
+            self.log_error("Supabase storage not available. Install: pip install supabase")
+            self.log_warning("Falling back to ChromaDB")
+            self._setup_chromadb_storage()
+        except Exception as e:
+            self.log_error(f"Failed to setup Supabase: {e}", e)
+            self.log_warning("Falling back to ChromaDB")
+            self._setup_chromadb_storage()
     
     def _load_base_knowledge(self):
         """Load base knowledge if collection is empty"""
-        if not self.config.enabled:
+        if not self.config.enabled or not self.storage:
             return
             
-        if self.collection.count() == 0:
+        if self.storage.count() == 0:
             base_knowledge = [
                 ("Per pulire il forno naturalmente, usa bicarbonato di sodio e aceto. Crea una pasta con bicarbonato e acqua, applicala nel forno, lascia agire, poi spruzza aceto e pulisci.", "pulizia"),
                 ("Multiuso naturale: mescola parti uguali di aceto bianco e acqua, aggiungi alcune gocce di olio essenziale di limone. Ottimo per superfici e vetri.", "pulizia"),
@@ -125,24 +218,12 @@ class RAGSystem(LoggerMixin):
     
     def add_knowledge(self, content: str, category: str = "generale", metadata: Optional[Dict] = None) -> str:
         """Add knowledge to the database"""
-        if not self.config.enabled:
+        if not self.config.enabled or not self.storage:
             self.log_warning("RAG system disabled, cannot add knowledge")
             return ""
         
         try:
-            doc_id = generate_document_id(content, category)
-            embedding = self.embedder.encode(content).tolist()
-            
-            doc_metadata = {"category": category, "timestamp": datetime.now().isoformat()}
-            if metadata:
-                doc_metadata.update(metadata)
-            
-            self.collection.add(
-                documents=[content],
-                embeddings=[embedding],
-                metadatas=[doc_metadata],
-                ids=[doc_id]
-            )
+            doc_id = self.storage.add_knowledge(content, category, metadata)
             
             # Clear cache as new knowledge was added
             self.cache.clear()
@@ -156,7 +237,7 @@ class RAGSystem(LoggerMixin):
     
     def search_knowledge(self, query: str, n_results: Optional[int] = None) -> List[Dict]:
         """Search knowledge base"""
-        if not self.config.enabled:
+        if not self.config.enabled or not self.storage:
             return []
         
         if n_results is None:
@@ -170,31 +251,19 @@ class RAGSystem(LoggerMixin):
             return cached_result
         
         try:
-            query_embedding = self.embedder.encode(query).tolist()
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=min(n_results, max(1, self.collection.count()))
-            )
+            knowledge_list = self.storage.search_knowledge(query, n_results)
             
-            knowledge_list = []
-            if results["documents"] and results["documents"][0]:
-                for i, doc in enumerate(results["documents"][0]):
-                    distance = results["distances"][0][i] if results.get("distances") else 0
-                    similarity = 1 - distance  # Convert distance to similarity
-                    
-                    if similarity >= self.config.similarity_threshold:
-                        knowledge_list.append({
-                            "content": doc,
-                            "category": results["metadatas"][0][i].get("category", "generale"),
-                            "similarity": similarity,
-                            "id": results["ids"][0][i]
-                        })
+            # Filter by similarity threshold
+            filtered_list = [
+                item for item in knowledge_list 
+                if item.get("similarity", 0) >= self.config.similarity_threshold
+            ]
             
             # Cache the results
-            self.cache.set(cache_key, knowledge_list)
+            self.cache.set(cache_key, filtered_list)
             
-            self.log_debug(f"Found {len(knowledge_list)} relevant knowledge items")
-            return knowledge_list
+            self.log_debug(f"Found {len(filtered_list)} relevant knowledge items")
+            return filtered_list
             
         except Exception as e:
             self.log_error(f"Error searching knowledge: {e}", e)
@@ -202,27 +271,40 @@ class RAGSystem(LoggerMixin):
     
     def get_stats(self) -> Dict:
         """Get knowledge base statistics"""
-        if not self.config.enabled:
+        if not self.config.enabled or not self.storage:
             return {"enabled": False}
         
         try:
-            all_data = self.collection.get()
-            categories = {}
+            stats = self.storage.get_stats()
             
-            for metadata in all_data.get("metadatas", []):
-                category = metadata.get("category", "generale")
-                categories[category] = categories.get(category, 0) + 1
+            # Normalize stats format for consistency
+            # Handle different storage backend formats
+            if "total" in stats:
+                # Supabase format: {"total": x, "by_category": {...}, "storage_backend": "..."}
+                normalized = {
+                    "enabled": True,
+                    "total_documents": stats.get("total", 0),
+                    "by_category": stats.get("by_category", {}),
+                    "storage_backend": stats.get("storage_backend", "unknown"),
+                    "cache_size": len(self.cache.cache)
+                }
+            elif "total_documents" in stats:
+                # ChromaDB format: already has total_documents
+                normalized = stats.copy()
+                normalized["enabled"] = True
+                normalized["cache_size"] = len(self.cache.cache)
+            else:
+                # Unknown format - preserve as is
+                normalized = stats.copy()
+                normalized["enabled"] = True
+                normalized["cache_size"] = len(self.cache.cache)
+                normalized.setdefault("total_documents", 0)
             
-            return {
-                "enabled": True,
-                "total_documents": self.collection.count(),
-                "categories": categories,
-                "collection_name": self.config.collection_name
-            }
+            return normalized
             
         except Exception as e:
             self.log_error(f"Error getting stats: {e}", e)
-            return {"enabled": True, "error": str(e)}
+            return {"enabled": True, "total_documents": 0, "error": str(e)}
 
 
 class HomeChatbot(LoggerMixin):

@@ -10,7 +10,7 @@ An intelligent home assistant chatbot that helps with household management, natu
 
 - 🤖 **Telegram Bot Interface** - Interact via Telegram
 - 🧠 **RAG System** - Retrieval-Augmented Generation for accurate responses
-- 📚 **Knowledge Base** - Store and retrieve custom information
+- 📚 **Persistent Knowledge Storage** - Supabase (500MB free) or local ChromaDB
 - 💬 **Text Knowledge Addition** - Add knowledge via `/addknowledge` command
 - 📄 **PDF Support** - Upload documents to expand knowledge base
 - 🎨 **Web Admin Interface** - Streamlit-based management panel
@@ -65,6 +65,14 @@ python src/main.py
 .\test-docker.ps1
 ```
 
+**Test with Supabase (persistent storage):**
+
+```powershell
+# Setup Supabase first (see SUPABASE_SETUP.md)
+# Then test with Docker
+.\test-supabase.ps1
+```
+
 **Or manually:**
 
 ```powershell
@@ -77,6 +85,7 @@ docker-compose up --build
 - ✅ Isolates dependencies
 - ✅ Easy to reset and test again
 - ✅ No Python installation conflicts
+- ✅ Test Supabase integration locally
 
 **See guides:** [LOCAL_TESTING.md](LOCAL_TESTING.md) | [DOCKER_LOCAL.md](DOCKER_LOCAL.md)
 

@@ -11,9 +11,10 @@
   },
   "rag": {
     "enabled": true,
+    "storage_type": "supabase",
     "embedding_model": "all-MiniLM-L6-v2",
     "chroma_path": "./chroma_db",
-    "collection_name": "home_assistant_prod",
+    "collection_name": "home_assistant",
     "max_search_results": 3,
     "similarity_threshold": 0.7
   },

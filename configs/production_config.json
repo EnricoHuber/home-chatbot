@@ -1,5 +1,5 @@
 {
-  "app_name": "Home Assistant Chatbot",
+  "app_name": "MarIA",
   "version": "2.0.0",
   "environment": "production",
   "llm": {

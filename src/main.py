@@ -27,8 +27,8 @@ def index():
     """Health check endpoint"""
     return {
         "status": "running",
-        "service": "Home Assistant Chatbot",
-        "message": "🏠 Bot is active!"
+        "service": "MarIA - Smart Home Assistant",
+        "message": "🤖 MarIA is active!"
     }, 200
 
 @app.route('/health')
@@ -47,7 +47,7 @@ def run_flask(config):
 def main():
     """Main function"""
     print("=" * 60)
-    print("🏠 HOME ASSISTANT CHATBOT")
+    print("🤖 MarIA - Your Smart Home Assistant")
     print("=" * 60)
     
     # Load configuration
@@ -63,7 +63,7 @@ def main():
     logger = setup_logging(config.logging)
     log = logger.get_logger("Main")
     
-    log.info("Starting Home Assistant Chatbot...")
+    log.info("Starting MarIA - Your Smart Home Assistant...")
     
     # Validate configuration
     is_valid, errors = config_manager.validate_config()

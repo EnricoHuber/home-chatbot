@@ -48,7 +48,9 @@ class TelegramBotHandler(LoggerMixin):
             await update.message.reply_text("⚠️ Non sei autorizzato a usare questo bot.")
             return
         
-        welcome_message = f"""🏠 Ciao {username}! Sono il tuo assistente domestico.
+        welcome_message = f"""🤖 Ciao {username}! Sono MarIA, la tua assistente domestica intelligente.
+
+📍 Al servizio di Via Santa Maria della Libera!
 
 Posso aiutarti con:
 • 🧹 Consigli per la pulizia naturale
@@ -132,9 +134,12 @@ Usando solo conoscenza base del modello.
     
     async def info_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /info command"""
-        info_text = """ℹ️ **Informazioni sul Bot**
+        info_text = """ℹ️ **Informazioni su MarIA**
 
-Sono un assistente domestico intelligente che utilizza:
+🤖 Sono MarIA, la tua assistente domestica intelligente!
+📍 Al servizio di Via Santa Maria della Libera
+
+Utilizzo:
 • 🧠 AI per comprendere le tue domande
 • 📚 Database di conoscenze specializzato
 • 🔍 Ricerca semantica per trovare info rilevanti
@@ -434,10 +439,10 @@ Ora posso usare questa informazione per rispondere alle domande!"""
     async def setup_bot_commands(self, application: Application) -> None:
         """Setup bot command menu visible in Telegram UI"""
         commands = [
-            BotCommand("start", "🏠 Avvia il bot e mostra il messaggio di benvenuto"),
+            BotCommand("start", "🤖 Avvia MarIA e mostra il benvenuto"),
             BotCommand("help", "❓ Mostra l'elenco dei comandi disponibili"),
             BotCommand("stats", "📊 Visualizza statistiche del bot"),
-            BotCommand("info", "ℹ️ Informazioni sul bot"),
+            BotCommand("info", "ℹ️ Informazioni su MarIA"),
             BotCommand("resources", "🔗 Link alle dashboard dei servizi"),
             BotCommand("usage", "📈 Utilizzo in tempo reale dei servizi"),
             BotCommand("addknowledge", "📚 Aggiungi conoscenza alla base dati"),
